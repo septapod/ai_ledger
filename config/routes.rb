@@ -260,6 +260,27 @@ Rails.application.routes.draw do
       patch "undelete"
       patch "destroy"
     end
+
+    # AI Ledger: Approval queue
+    resources :queue, only: [:index] do
+      collection do
+        post :approve
+        post :reject
+        post :bulk_approve
+      end
+    end
+  end
+
+  # AI Ledger: Admin routes
+  namespace :admin do
+    resource :bot, only: [:show, :update], controller: "bot" do
+      post :toggle
+    end
+    resources :rss_feeds do
+      member do
+        post :fetch_now
+      end
+    end
   end
 
   mount MissionControl::Jobs::Engine, at: "/jobs"

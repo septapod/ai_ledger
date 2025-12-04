@@ -1,0 +1,127 @@
+<div class="box">
+  <div class="legend">AI Agent Configuration</div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+    <div>
+      <h3 style="margin-top: 0;">Status</h3>
+      <p>
+        <strong>Agent:</strong>
+        <span style="padding: 0.25rem 0.5rem; border-radius: 4px;
+          background: <%= @bot_user.bot_enabled? ? '#5cb85c' : '#d9534f' %>;
+          color: white;">
+          <%= @bot_user.bot_enabled? ? 'Active' : 'Disabled' %>
+        </span>
+
+        <%= button_to (@bot_user.bot_enabled? ? "Disable Agent" : "Enable Agent"),
+            toggle_admin_bot_path,
+            method: :post,
+            style: "margin-left: 1rem; padding: 0.25rem 0.75rem; cursor: pointer;" %>
+      </p>
+
+      <p>
+        <strong>Username:</strong> <%= link_to @bot_user.username, user_path(@bot_user) %><br>
+        <strong>Email:</strong> <%= @bot_user.email %><br>
+        <strong>Karma:</strong> <%= @bot_user.karma %>
+      </p>
+    </div>
+
+    <div>
+      <h3 style="margin-top: 0;">Today's Activity</h3>
+      <table style="width: 100%;">
+        <tr>
+          <td>Submissions Today:</td>
+          <td><strong><%= @daily_stats[:submissions_today] %></strong></td>
+        </tr>
+        <tr>
+          <td>Pending Approval:</td>
+          <td><strong><%= @daily_stats[:pending] %></strong></td>
+        </tr>
+        <tr>
+          <td>Approved Today:</td>
+          <td><strong><%= @daily_stats[:approved_today] %></strong></td>
+        </tr>
+        <tr>
+          <td>Rejected Today:</td>
+          <td><strong><%= @daily_stats[:rejected_today] %></strong></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <h3>Submission Settings</h3>
+  <%= form_with model: @bot_user, url: admin_bot_path, method: :patch, local: true do |f| %>
+    <table class="form">
+      <tr>
+        <td class="label">Auto-Submit Enabled:</td>
+        <td>
+          <%= check_box_tag "bot_settings[auto_submit_enabled]", "1",
+              @bot_user.bot_auto_submit_enabled?,
+              id: "auto_submit_enabled" %>
+          <label for="auto_submit_enabled">Automatically submit relevant RSS items</label>
+        </td>
+      </tr>
+      <tr>
+        <td class="label">Max Daily Submissions:</td>
+        <td>
+          <%= number_field_tag "bot_settings[max_daily_submissions]",
+              @bot_user.max_daily_submissions,
+              min: 1, max: 200, style: "width: 80px;" %>
+          <span class="hint">Maximum stories to submit per day</span>
+        </td>
+      </tr>
+      <tr>
+        <td class="label">Relevance Threshold:</td>
+        <td>
+          <%= number_field_tag "bot_settings[relevance_threshold]",
+              @bot_user.relevance_threshold,
+              min: 0.0, max: 1.0, step: 0.05, style: "width: 80px;" %>
+          <span class="hint">0.0 - 1.0 (higher = more selective)</span>
+        </td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>
+          <%= f.submit "Save Settings", class: "btn" %>
+        </td>
+      </tr>
+    </table>
+  <% end %>
+
+  <h3>Recent Submissions</h3>
+  <% if @recent_submissions.empty? %>
+    <p style="color: #666;">No submissions yet.</p>
+  <% else %>
+    <table style="width: 100%;">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Submitted</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_submissions.each do |story| %>
+          <tr>
+            <td><%= link_to story.title.truncate(60), story_path(story) %></td>
+            <td>
+              <span style="padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em;
+                background: <%= case story.approval_status
+                  when 'pending' then '#f0ad4e'
+                  when 'approved' then '#5cb85c'
+                  when 'rejected' then '#d9534f'
+                  end %>;
+                color: white;">
+                <%= story.approval_status %>
+              </span>
+            </td>
+            <td><%= time_ago_in_words(story.created_at) %> ago</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+
+  <p style="margin-top: 1rem;">
+    <%= link_to "View All Bot Stories", newest_by_user_path(@bot_user.username) %>
+  </p>
+</div>

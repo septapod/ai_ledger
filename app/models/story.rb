@@ -191,6 +191,7 @@ class Story < ApplicationRecord
   }
 
   include Token
+  include SubmissionApproval
 
   validates :title, length: {in: 3..150}, presence: true
   validates :description, length: {maximum: 65_535}

@@ -1,0 +1,49 @@
+<%= form_with model: [:admin, @feed], local: true do |f| %>
+  <% if @feed.errors.any? %>
+    <div style="background: #f2dede; border: 1px solid #ebccd1; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+      <strong>Please fix the following errors:</strong>
+      <ul>
+        <% @feed.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <table class="form">
+    <tr>
+      <td class="label"><%= f.label :name %></td>
+      <td><%= f.text_field :name, style: "width: 300px;" %></td>
+    </tr>
+    <tr>
+      <td class="label"><%= f.label :url %></td>
+      <td><%= f.url_field :url, style: "width: 400px;", placeholder: "https://example.com/feed.xml" %></td>
+    </tr>
+    <tr>
+      <td class="label"><%= f.label :category %></td>
+      <td>
+        <%= f.select :category, options_for_select([
+          ['Credit Union', 'credit_union'],
+          ['Fintech', 'fintech'],
+          ['AI/Technology', 'ai'],
+          ['Banking', 'banking'],
+          ['General News', 'general']
+        ], @feed.category), include_blank: '-- Select Category --' %>
+      </td>
+    </tr>
+    <tr>
+      <td class="label"><%= f.label :active %></td>
+      <td>
+        <%= f.check_box :active %>
+        <label for="rss_feed_active">Active (will be fetched hourly)</label>
+      </td>
+    </tr>
+    <tr>
+      <td></td>
+      <td>
+        <%= f.submit @feed.new_record? ? "Add Feed" : "Update Feed", class: "btn" %>
+        <%= link_to "Cancel", admin_rss_feeds_path %>
+      </td>
+    </tr>
+  </table>
+<% end %>

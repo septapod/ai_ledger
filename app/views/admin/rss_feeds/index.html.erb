@@ -1,0 +1,78 @@
+<div class="box">
+  <div class="legend">
+    RSS Feed Management
+    <span style="float: right;">
+      <%= link_to "Add Feed", new_admin_rss_feed_path, class: "btn btn-small" %>
+    </span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; text-align: center;">
+    <div style="background: #f5f5f5; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @stats[:total] %></div>
+      <div style="color: #666;">Total Feeds</div>
+    </div>
+    <div style="background: #dff0d8; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @stats[:active] %></div>
+      <div style="color: #666;">Active</div>
+    </div>
+    <div style="background: #fcf8e3; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @stats[:items_pending] %></div>
+      <div style="color: #666;">Items Pending</div>
+    </div>
+    <div style="background: #d9edf7; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @stats[:items_relevant] %></div>
+      <div style="color: #666;">Relevant Items</div>
+    </div>
+  </div>
+
+  <table style="width: 100%;">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Status</th>
+        <th>Last Fetch</th>
+        <th>Stories</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @feeds.each do |feed| %>
+        <tr style="<%= 'opacity: 0.6;' unless feed.active? %>">
+          <td>
+            <%= link_to feed.name, admin_rss_feed_path(feed) %>
+            <% if feed.has_error? %>
+              <span title="<%= feed.last_error %>" style="color: #d9534f;">&#x26A0;</span>
+            <% end %>
+          </td>
+          <td><%= feed.category || '-' %></td>
+          <td>
+            <span style="padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.85em;
+              background: <%= feed.active? ? '#5cb85c' : '#999' %>; color: white;">
+              <%= feed.active? ? 'Active' : 'Inactive' %>
+            </span>
+          </td>
+          <td>
+            <% if feed.last_fetched_at %>
+              <%= time_ago_in_words(feed.last_fetched_at) %> ago
+            <% else %>
+              Never
+            <% end %>
+          </td>
+          <td><%= feed.story_count %></td>
+          <td>
+            <%= link_to "Edit", edit_admin_rss_feed_path(feed) %> |
+            <%= button_to "Fetch Now", fetch_now_admin_rss_feed_path(feed),
+                method: :post, style: "display: inline; padding: 0.1rem 0.3rem; font-size: 0.85em;" %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <% if @feeds.empty? %>
+    <p style="text-align: center; padding: 2rem; color: #666;">
+      No RSS feeds configured yet. <%= link_to "Add your first feed", new_admin_rss_feed_path %>.
+    </p>
+  <% end %>
+</div>

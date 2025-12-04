@@ -1,0 +1,79 @@
+<div class="box">
+  <div class="legend">
+    <%= @feed.name %>
+    <span style="float: right;">
+      <%= link_to "Edit", edit_admin_rss_feed_path(@feed), class: "btn btn-small" %>
+      <%= button_to "Fetch Now", fetch_now_admin_rss_feed_path(@feed),
+          method: :post, class: "btn btn-small" %>
+      <%= link_to "Back to Feeds", admin_rss_feeds_path, class: "btn btn-small" %>
+    </span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 1.5rem;">
+    <div>
+      <h3 style="margin-top: 0;">Feed Details</h3>
+      <table>
+        <tr><td><strong>URL:</strong></td><td><%= link_to @feed.url, @feed.url, target: "_blank" %></td></tr>
+        <tr><td><strong>Category:</strong></td><td><%= @feed.category || '-' %></td></tr>
+        <tr><td><strong>Status:</strong></td><td><%= @feed.active? ? 'Active' : 'Inactive' %></td></tr>
+        <tr><td><strong>Last Fetched:</strong></td><td><%= @feed.last_fetched_at ? time_ago_in_words(@feed.last_fetched_at) + ' ago' : 'Never' %></td></tr>
+        <tr><td><strong>Fetch Count:</strong></td><td><%= @feed.fetch_count %></td></tr>
+        <% if @feed.last_error.present? %>
+          <tr><td><strong>Last Error:</strong></td><td style="color: #d9534f;"><%= @feed.last_error %></td></tr>
+        <% end %>
+      </table>
+    </div>
+
+    <div>
+      <h3 style="margin-top: 0;">Item Statistics</h3>
+      <table>
+        <tr><td>Total Items:</td><td><strong><%= @item_stats[:total] %></strong></td></tr>
+        <tr><td>Pending:</td><td><strong><%= @item_stats[:pending] %></strong></td></tr>
+        <tr><td>Relevant:</td><td><strong><%= @item_stats[:relevant] %></strong></td></tr>
+        <tr><td>Submitted:</td><td><strong><%= @item_stats[:submitted] %></strong></td></tr>
+        <tr><td>Stories Created:</td><td><strong><%= @feed.story_count %></strong></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h3>Recent Items</h3>
+  <% if @recent_items.empty? %>
+    <p style="color: #666;">No items fetched yet.</p>
+  <% else %>
+    <table style="width: 100%;">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Score</th>
+          <th>Fetched</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @recent_items.each do |item| %>
+          <tr>
+            <td>
+              <%= link_to item.title&.truncate(60) || item.url.truncate(60), item.url, target: "_blank" %>
+            </td>
+            <td>
+              <span style="padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em;
+                background: <%= case item.processing_status
+                  when 'pending' then '#f0ad4e'
+                  when 'relevant' then '#5cb85c'
+                  when 'irrelevant' then '#999'
+                  when 'duplicate' then '#5bc0de'
+                  when 'submitted' then '#337ab7'
+                  when 'error' then '#d9534f'
+                  end %>;
+                color: white;">
+                <%= item.processing_status %>
+              </span>
+            </td>
+            <td><%= item.relevance_score&.round(2) || '-' %></td>
+            <td><%= time_ago_in_words(item.created_at) %> ago</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

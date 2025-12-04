@@ -29,6 +29,13 @@ production:
   fetch_iana_tlds:
     class: FetchIanaTldsJob
     schedule: every 1 month
+  # AI Ledger: RSS scanning and bot submissions
+  rss_scan:
+    class: RssScanJob
+    schedule: every hour
+  bot_submission:
+    class: BotSubmissionJob
+    schedule: every 15 minutes
 
 development:
   clear_finished_jobs:
@@ -49,3 +56,10 @@ development:
   fetch_iana_tlds:
     class: FetchIanaTldsJob
     schedule: every 1 month
+  # AI Ledger: RSS scanning and bot submissions (development - faster)
+  rss_scan:
+    class: RssScanJob
+    schedule: every 5 minutes
+  bot_submission:
+    class: BotSubmissionJob
+    schedule: every 2 minutes

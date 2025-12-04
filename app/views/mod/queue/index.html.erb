@@ -1,0 +1,98 @@
+<%= render partial: "mod/subnav", locals: { periods: @periods } %>
+
+<div class="box">
+  <div class="legend">
+    Approval Queue
+    <span class="queue-stats">
+      (<%= @counts[:pending] %> pending |
+      <%= @counts[:approved_today] %> approved today |
+      <%= @counts[:rejected_today] %> rejected today)
+    </span>
+  </div>
+
+  <% if @pending_stories.empty? %>
+    <p class="empty-state" style="padding: 2rem; text-align: center; color: #666;">
+      No stories pending approval. Nice work!
+    </p>
+  <% else %>
+    <%= form_with url: bulk_approve_mod_queue_index_path, method: :post, class: "bulk-actions" do |f| %>
+      <div style="margin-bottom: 1rem;">
+        <button type="submit" class="btn btn-small" onclick="return confirm('Approve all selected stories?')">
+          Approve Selected
+        </button>
+      </div>
+
+      <ol class="stories">
+        <% @pending_stories.each do |story| %>
+          <li class="story pending" id="story_<%= story.short_id %>" style="border-left: 3px solid #f0ad4e; padding-left: 1rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+              <input type="checkbox" name="story_ids[]" value="<%= story.short_id %>" style="margin-top: 0.25rem;">
+
+              <div style="flex: 1;">
+                <div class="story-details">
+                  <span class="link">
+                    <% if story.url.present? %>
+                      <%= link_to story.title, story.url, target: "_blank", rel: "noopener" %>
+                      <span class="domain">(<%= story.domain&.domain || URI.parse(story.url).host rescue "link" %>)</span>
+                    <% else %>
+                      <%= link_to story.title, story_path(story) %>
+                      <span class="domain">(text)</span>
+                    <% end %>
+                  </span>
+                </div>
+
+                <div class="tags" style="margin: 0.25rem 0;">
+                  <% story.tags.each do |tag| %>
+                    <span class="tag tag_<%= tag.tag %>" style="font-size: 0.8em;"><%= tag.tag %></span>
+                  <% end %>
+                </div>
+
+                <div class="byline" style="font-size: 0.85em; color: #666;">
+                  Submitted by
+                  <%= link_to story.user.username, user_path(story.user) %>
+                  <% if story.user.is_bot_user? %>
+                    <span class="badge" style="background: #5bc0de; color: white; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.75em;">BOT</span>
+                  <% end %>
+                  <% if story.user.is_new? %>
+                    <span class="badge" style="background: #f0ad4e; color: white; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.75em;">NEW USER</span>
+                  <% end %>
+                  &bull;
+                  <%= time_ago_in_words(story.created_at) %> ago
+                </div>
+
+                <% if story.description.present? %>
+                  <div class="description" style="margin: 0.5rem 0; padding: 0.5rem; background: #f9f9f9; border-radius: 4px; font-size: 0.9em;">
+                    <%= story.markeddown_description.html_safe.truncate(300) %>
+                  </div>
+                <% end %>
+
+                <div class="queue-actions" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center;">
+                  <%= button_to "Approve",
+                      approve_mod_queue_index_path(story_id: story.short_id),
+                      method: :post,
+                      class: "btn btn-small",
+                      style: "background: #5cb85c; color: white; border: none; padding: 0.25rem 0.75rem; cursor: pointer;" %>
+
+                  <%= form_with url: reject_mod_queue_index_path(story_id: story.short_id),
+                                method: :post,
+                                style: "display: flex; gap: 0.25rem;",
+                                data: { turbo: false } do |f| %>
+                    <%= f.text_field :reason,
+                        placeholder: "Rejection reason (optional)",
+                        style: "padding: 0.25rem 0.5rem; font-size: 0.85em; width: 200px;" %>
+                    <%= f.submit "Reject",
+                        class: "btn btn-small",
+                        style: "background: #d9534f; color: white; border: none; padding: 0.25rem 0.75rem; cursor: pointer;",
+                        data: { confirm: "Reject this story?" } %>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </li>
+        <% end %>
+      </ol>
+
+      <%= paginate @pending_stories if @pending_stories.respond_to?(:total_pages) %>
+    <% end %>
+  <% end %>
+</div>
