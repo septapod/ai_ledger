@@ -47,21 +47,22 @@ ai_agent = User.find_or_create_by!(username: "ai_agent") do |u|
   u.bot_enabled = true
   u.requires_submission_approval = true
   u.karma = 100
-  u.bot_settings = {
-    "auto_submit_enabled" => true,
-    "max_daily_submissions" => 50,
-    "relevance_threshold" => 0.5,
-    "preferred_tags" => ["machine-learning", "generative-ai", "fintech"],
-    "excluded_domains" => []
-  }
   u.created_at = User::NEW_USER_DAYS.days.ago
 end
+# Update bot settings separately
+ai_agent.update_column(:bot_settings, {
+  "auto_submit_enabled" => true,
+  "max_daily_submissions" => 50,
+  "relevance_threshold" => 0.5,
+  "preferred_tags" => ["machine-learning", "generative-ai", "fintech"],
+  "excluded_domains" => []
+}.to_json)
 Rails.logger.debug "  * AI Agent bot user: #{ai_agent.username}"
 
 # Create AI Ledger categories and tags
-ai_category = Category.find_or_create_by!(category: "AI Technology")
-cu_category = Category.find_or_create_by!(category: "Credit Union Operations")
-news_category = Category.find_or_create_by!(category: "Industry News")
+ai_category = Category.find_or_create_by!(category: "AI-Technology")
+cu_category = Category.find_or_create_by!(category: "Credit-Union")
+news_category = Category.find_or_create_by!(category: "Industry-News")
 community_category = Category.find_or_create_by!(category: "Community")
 
 ai_tags = [

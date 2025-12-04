@@ -21,8 +21,8 @@ class CreateRssFeeds < ActiveRecord::Migration[8.0]
     add_index :rss_feeds, :category
 
     create_table :rss_feed_items do |t|
-      t.references :rss_feed, null: false, foreign_key: true
-      t.references :story, foreign_key: true
+      t.bigint :rss_feed_id, null: false
+      t.bigint :story_id, unsigned: true
       t.string :guid, null: false
       t.string :url, null: false, limit: 500
       t.string :title, limit: 500
@@ -35,8 +35,12 @@ class CreateRssFeeds < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
+    add_index :rss_feed_items, :rss_feed_id
+    add_index :rss_feed_items, :story_id
     add_index :rss_feed_items, :guid
     add_index :rss_feed_items, :processing_status
     add_index :rss_feed_items, [:rss_feed_id, :guid], unique: true
+    add_foreign_key :rss_feed_items, :rss_feeds
+    add_foreign_key :rss_feed_items, :stories
   end
 end
