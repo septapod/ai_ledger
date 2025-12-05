@@ -2,6 +2,7 @@
 
 class Story < ApplicationRecord
   belongs_to :user
+  belongs_to :agent, optional: true
   belongs_to :domain, optional: true, counter_cache: true
   belongs_to :origin, optional: true, counter_cache: true
   belongs_to :merged_into_story,
@@ -200,6 +201,7 @@ class Story < ApplicationRecord
   validates :markeddown_description, length: {maximum: 16_777_215, allow_nil: true}
   validates :mastodon_id, length: {maximum: 25, allow_nil: true}
   validates :twitter_id, length: {maximum: 20, allow_nil: true}
+  validates :image_url, length: {maximum: 500, allow_nil: true}
   validates :is_deleted, :is_moderated, :user_is_author, :user_is_following, inclusion: {in: [true, false]}
   validates :score, :flags, :hotness, :comments_count, presence: true
   validates :normalized_url, length: {maximum: 255, allow_nil: true}
@@ -242,6 +244,7 @@ class Story < ApplicationRecord
   attr_writer :fetched_response
 
   before_validation :assign_initial_attributes, on: :create
+  before_validation :set_image_url_from_og_metadata, on: :create
   before_save :log_moderation
   before_save :fix_bogus_chars
   after_create :mark_submitter, :record_initial_upvote
@@ -579,6 +582,10 @@ class Story < ApplicationRecord
     Hat.where(user_id: user.id, modlog_use: true).any? do |hat|
       check_at.between?(hat.created_at, hat.doffed_at || current_time)
     end
+  end
+
+  def has_thumbnail?
+    image_url.present?
   end
 
   def can_have_suggestions_from_user?(user)
@@ -1136,20 +1143,25 @@ class Story < ApplicationRecord
     begin
       title = parsed.at_css("meta[property='og:title']")
         .attributes["content"].text
-    rescue
+      Rails.logger.debug "[URL Preview] Title from og:title: #{title}"
+    rescue => e
+      Rails.logger.debug "[URL Preview] og:title failed: #{e.message}"
     end
 
     # then try <meta name="title">
     if title.to_s == ""
       begin
         title = parsed.at_css("meta[name='title']").attributes["content"].text
-      rescue
+        Rails.logger.debug "[URL Preview] Title from name=title: #{title}"
+      rescue => e
+        Rails.logger.debug "[URL Preview] name=title failed: #{e.message}"
       end
     end
 
     # then try plain old <title>
     if title.to_s == ""
       title = parsed.at_css("title").try(:text).to_s
+      Rails.logger.debug "[URL Preview] Title from <title>: #{title}"
     end
 
     # see if the site name is available, so we can strip it out in case it was
@@ -1176,6 +1188,12 @@ class Story < ApplicationRecord
     # strip off common GitHub site + repo owner
     @fetched_attributes[:title].sub!(/GitHub - [a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}\//i, "")
 
+    # Extract og:description for preview hint
+    @fetched_attributes[:description] = extract_og_description(parsed)
+
+    # Extract og:image for preview (pass URL for resolving relative paths)
+    @fetched_attributes[:image] = extract_og_image(parsed, url)
+
     # attempt to get the canonical url if it can be parsed,
     # if it is not the domain root path, and if it
     # responds to GET with a 200-level code
@@ -1184,6 +1202,8 @@ class Story < ApplicationRecord
       @fetched_attributes[:url] = cu if valid_canonical_uri?(cu)
     rescue
     end
+
+    Rails.logger.info "[URL Preview] Extracted - title: '#{@fetched_attributes[:title]}', desc: #{@fetched_attributes[:description].present?}, image: #{@fetched_attributes[:image].present?}"
 
     @fetched_attributes
   end
@@ -1216,7 +1236,7 @@ class Story < ApplicationRecord
       # if we haven't had a test inject a response into us
       if !@fetched_response
         s = Sponge.new
-        s.timeout = 3
+        s.timeout = 5  # Increased from 3s to 5s for slower sites
         # User submitted URLs may have an incorrect https certificate, but we
         # don't want to fail the retrieval for this. Security risk is minimal.
         s.ssl_verify = false
@@ -1224,8 +1244,18 @@ class Story < ApplicationRecord
           "User-agent" => "#{Rails.application.domain} for #{fetching_ip}",
           "Referer" => Rails.application.domain
         }
+
+        Rails.logger.info "[URL Preview] Fetching: #{url}"
         res = s.fetch(url, :get, nil, nil, headers, 3)
         @fetched_response = res
+
+        # Handle nil or failed responses
+        if @fetched_response.nil?
+          Rails.logger.error "[URL Preview] Fetch returned nil for #{url} (possibly redirect/paywall)"
+          return @fetched_attributes
+        end
+
+        Rails.logger.info "[URL Preview] Fetch success: #{url} (#{@fetched_response["content-type"]})"
       end
 
       case @fetched_response["content-type"]
@@ -1234,7 +1264,8 @@ class Story < ApplicationRecord
       else
         fetched_attributes_html
       end
-    rescue
+    rescue => e
+      Rails.logger.error "[URL Preview] Fetch failed for #{url}: #{e.class} - #{e.message}"
       @fetched_attributes
     end
   end
@@ -1246,6 +1277,63 @@ class Story < ApplicationRecord
   end
 
   private
+
+  def set_image_url_from_og_metadata
+    return if url.blank? || image_url.present?
+
+    attrs = fetched_attributes
+    self.image_url = attrs[:image] if attrs[:image].present?
+  rescue => e
+    Rails.logger.warn "[Story] Failed to fetch og:image: #{e.message}"
+    nil
+  end
+
+  def extract_og_description(parsed)
+    desc = parsed.at_css("meta[property='og:description']")&.attributes&.dig("content")&.text&.strip ||
+      parsed.at_css("meta[name='description']")&.attributes&.dig("content")&.text&.strip
+
+    Rails.logger.debug "[URL Preview] Description extracted: #{desc.present?}"
+    desc
+  rescue => e
+    Rails.logger.warn "[URL Preview] Description extraction failed: #{e.message}"
+    nil
+  end
+
+  def extract_og_image(parsed, base_url)
+    image_url = parsed.at_css("meta[property='og:image']")&.attributes&.dig("content")&.text&.strip
+
+    if image_url.blank?
+      Rails.logger.debug "[URL Preview] No og:image found"
+      return nil
+    end
+
+    Rails.logger.debug "[URL Preview] Raw image URL: #{image_url}"
+
+    # Resolve relative URLs
+    begin
+      base_uri = URI.parse(base_url)
+      image_uri = URI.parse(image_url)
+
+      resolved_url = if image_url.start_with?("//")
+        # Handle protocol-relative URLs (//example.com/img.png)
+        "#{base_uri.scheme}:#{image_url}"
+      elsif image_uri.relative?
+        # Handle relative URLs (/path/to/image.png or path/to/image.png)
+        URI.join(base_url, image_url).to_s
+      else
+        image_url
+      end
+
+      Rails.logger.debug "[URL Preview] Resolved image URL: #{resolved_url}"
+      resolved_url
+    rescue URI::InvalidURIError => e
+      Rails.logger.warn "[URL Preview] Invalid image URI: #{e.message}"
+      image_url
+    end
+  rescue => e
+    Rails.logger.error "[URL Preview] Image extraction failed: #{e.message}"
+    nil
+  end
 
   def valid_canonical_uri?(url)
     ucu = URI.parse(url)

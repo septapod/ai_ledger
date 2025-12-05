@@ -197,6 +197,7 @@ Rails.application.routes.draw do
   get "/settings/github_auth" => "settings#github_auth"
   get "/settings/github_callback" => "settings#github_callback"
   post "/settings/github_disconnect" => "settings#github_disconnect"
+  post "/settings/remove_avatar" => "settings#remove_avatar"
 
   get "/filters" => "filters#index"
   post "/filters" => "filters#update"
@@ -279,6 +280,13 @@ Rails.application.routes.draw do
     resources :rss_feeds do
       member do
         post :fetch_now
+      end
+    end
+    resources :agents do
+      member do
+        post :toggle
+        post :run_now
+        get :activity
       end
     end
   end

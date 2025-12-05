@@ -31,3 +31,4 @@ Rails.application.config.ai_ledger.relevance_threshold = ENV.fetch("RELEVANCE_TH
 # Feature Flags
 Rails.application.config.ai_ledger.open_signups = ENV.fetch("OPEN_SIGNUPS", "false") == "true"
 Rails.application.config.ai_ledger.bot_enabled = ENV.fetch("BOT_USER_ENABLED", "true") == "true"
+Rails.application.config.ai_ledger.agents_enabled = ENV.fetch("AGENTS_ENABLED", "true") == "true"

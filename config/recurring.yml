@@ -36,6 +36,10 @@ production:
   bot_submission:
     class: BotSubmissionJob
     schedule: every 15 minutes
+  # AI Ledger: Multi-agent orchestration
+  agent_orchestration:
+    class: AgentOrchestrationJob
+    schedule: every 5 minutes
 
 development:
   clear_finished_jobs:
@@ -63,3 +67,7 @@ development:
   bot_submission:
     class: BotSubmissionJob
     schedule: every 2 minutes
+  # AI Ledger: Multi-agent orchestration (development - faster)
+  agent_orchestration:
+    class: AgentOrchestrationJob
+    schedule: every 1 minute

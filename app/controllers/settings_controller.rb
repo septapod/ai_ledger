@@ -35,6 +35,7 @@ class SettingsController < ApplicationController
 
   def update
     @edit_user = @user.clone
+    avatar_changed = params[:user][:avatar].present?
 
     if params[:user][:password].empty? ||
         @user.authenticate(params[:current_password].to_s)
@@ -48,6 +49,7 @@ class SettingsController < ApplicationController
             by: @user
           )
         end
+        expire_avatar_cache(@edit_user.username) if avatar_changed
         session[:u] = @user.session_token if params[:user][:password]
         flash.now[:success] = "Successfully updated settings."
         @user = @edit_user
@@ -271,11 +273,36 @@ class SettingsController < ApplicationController
     redirect_to settings_path
   end
 
+  def remove_avatar
+    if @user.avatar.attached?
+      @user.avatar.purge
+      expire_avatar_cache(@user.username)
+      flash[:success] = "Your avatar has been removed."
+    else
+      flash[:error] = "No avatar to remove."
+    end
+    redirect_to settings_path
+  end
+
   private
+
+  def expire_avatar_cache(username)
+    cache_dir = Rails.public_path.join("avatars/").to_s
+    return unless Dir.exist?(cache_dir)
+
+    Dir.entries(cache_dir).select { |f|
+      f.match(/\A#{Regexp.escape(username)}-(\d+)\.png\z/)
+    }.each do |f|
+      File.unlink("#{cache_dir}/#{f}")
+    rescue => e
+      Rails.logger.error "Failed expiring #{f}: #{e}"
+    end
+  end
 
   def user_params
     params.require(:user).permit(
       :username, :email, :password, :password_confirmation, :homepage, :about,
+      :avatar,
       :email_replies, :email_messages, :email_mentions, :inbox_mentions,
       :pushover_replies, :pushover_messages, :pushover_mentions,
       :mailing_list_mode, :show_email, :show_avatars, :show_story_previews,

@@ -5,7 +5,7 @@
 <% end %>
 
 <section>
-  <%= form_with model: @edit_user, url: settings_path, method: :post, id: 'edit_user', namespace: 'edit_user' do |f| %>
+  <%= form_with model: @edit_user, url: settings_path, method: :post, id: 'edit_user', namespace: 'edit_user', multipart: true do |f| %>
     <%= errors_for f.object %>
 
     <section>
@@ -48,6 +48,27 @@
           <%= f.text_area :about %>
 
           <%= render :partial => "global/markdownhelp" %>
+        </div>
+
+        <%= f.label :avatar, "Avatar" %>
+        <div>
+          <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 0.5em;">
+            <%= image_tag @edit_user.avatar_path(100), alt: "Current avatar", style: "width: 100px; height: 100px; border-radius: 4px;" %>
+            <div>
+              <% if @edit_user.avatar.attached? %>
+                <span style="color: var(--color-success);">Custom avatar uploaded</span>
+              <% else %>
+                <span class="hint">Using Gravatar or default</span>
+              <% end %>
+            </div>
+          </div>
+          <%= f.file_field :avatar, accept: "image/png,image/jpeg,image/gif,image/webp" %>
+          <div class="hint">
+            Upload a PNG, JPEG, GIF, or WebP image. Max 2MB.
+            <% if @edit_user.avatar.attached? %>
+              <br><%= link_post "Remove uploaded avatar", "/settings/remove_avatar" %>
+            <% end %>
+          </div>
         </div>
       </div>
 

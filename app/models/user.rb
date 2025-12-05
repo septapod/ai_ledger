@@ -62,6 +62,10 @@ class User < ApplicationRecord
     inverse_of: :user,
     dependent: :destroy
 
+  has_one :agent, dependent: :destroy
+
+  has_one_attached :avatar
+
   include EmailBlocklistValidation
   include Token
   include UsernameAttribute
@@ -350,6 +354,12 @@ class User < ApplicationRecord
   end
 
   def fetched_avatar(size = 100)
+    # Return uploaded avatar if available
+    if avatar.attached?
+      return avatar.download
+    end
+
+    # Fall back to Gravatar
     gravatar_url = "https://www.gravatar.com/avatar/" <<
       Digest::MD5.hexdigest(email.strip.downcase) <<
       "?r=pg&d=identicon&s=#{size}"

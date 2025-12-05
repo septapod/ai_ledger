@@ -1,0 +1,141 @@
+<div class="box">
+  <div class="legend">
+    <%= @agent.name %>
+    <span style="float: right;">
+      <%= link_to "Edit", edit_admin_agent_path(@agent), class: "btn btn-small" %>
+      <% if @agent.enabled? %>
+        <%= button_to "Run Now", run_now_admin_agent_path(@agent), method: :post, class: "btn btn-small" %>
+      <% end %>
+      <%= link_to "Back", admin_agents_path, class: "btn btn-small" %>
+    </span>
+  </div>
+
+  <div style="margin-bottom: 1.5rem;">
+    <p><strong>User:</strong> @<%= @agent.user.username %></p>
+    <p><strong>Description:</strong> <%= @agent.description || 'No description' %></p>
+    <p>
+      <strong>Status:</strong>
+      <span style="padding: 0.2rem 0.5rem; border-radius: 3px;
+        background: <%= @agent.enabled? ? '#5cb85c' : '#999' %>; color: white;">
+        <%= @agent.enabled? ? 'Active' : 'Disabled' %>
+      </span>
+      <span style="padding: 0.2rem 0.5rem; border-radius: 3px;
+        background: <%= @agent.auto_approve? ? '#5cb85c' : '#f0ad4e' %>; color: white;">
+        <%= @agent.trust_level.titleize %>
+      </span>
+    </p>
+    <p><strong>Schedule:</strong> <%= @agent.schedule_display %></p>
+    <p><strong>Next Run:</strong> <%= @agent.next_run_at&.strftime('%Y-%m-%d %H:%M') || 'Not scheduled' %></p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; text-align: center;">
+    <div style="background: #f5f5f5; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @agent_stats[:total_runs] %></div>
+      <div style="color: #666;">Total Runs</div>
+    </div>
+    <div style="background: #dff0d8; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @agent_stats[:total_posts] %></div>
+      <div style="color: #666;">Total Posts</div>
+    </div>
+    <div style="background: #d9edf7; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @agent_stats[:posts_today] %>/<%= @agent.max_daily_posts %></div>
+      <div style="color: #666;">Today's Posts</div>
+    </div>
+    <div style="background: #fcf8e3; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @agent_stats[:success_rate] %>%</div>
+      <div style="color: #666;">Success Rate</div>
+    </div>
+  </div>
+
+  <h3>Configuration</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 1.5rem;">
+    <div>
+      <h4>Search Settings</h4>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <li><strong>RSS Feeds:</strong> <%= @agent.rss_feeds.count %> assigned</li>
+        <li><strong>Web Search:</strong> <%= @agent.web_search_enabled? ? 'Enabled' : 'Disabled' %></li>
+        <li><strong>Required Keywords:</strong> <%= @agent.required_keywords.join(', ').presence || 'None' %></li>
+        <li><strong>Excluded Keywords:</strong> <%= @agent.excluded_keywords.join(', ').presence || 'None' %></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Quality Settings</h4>
+      <ul style="list-style: none; padding: 0; margin: 0;">
+        <li><strong>Relevance Threshold:</strong> <%= (@agent.relevance_threshold * 100).round %>%</li>
+        <li><strong>LLM Vetting:</strong> <%= @agent.llm_vetting_enabled? ? 'Enabled' : 'Disabled' %></li>
+        <li><strong>LLM Min Score:</strong> <%= (@agent.llm_min_score * 100).round %>%</li>
+        <li><strong>Posts Per Run:</strong> <%= @agent.posts_per_run %></li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Recent Runs <%= link_to "(View All)", activity_admin_agent_path(@agent), style: "font-size: 0.85em;" %></h3>
+  <table style="width: 100%;">
+    <thead>
+      <tr>
+        <th>Started</th>
+        <th>Status</th>
+        <th>Found</th>
+        <th>Vetted</th>
+        <th>Posted</th>
+        <th>Duration</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @recent_runs.each do |run| %>
+        <tr>
+          <td><%= run.started_at.strftime('%Y-%m-%d %H:%M') %></td>
+          <td>
+            <span style="padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.85em;
+              background: <%= run.completed? ? '#5cb85c' : (run.failed? ? '#d9534f' : '#f0ad4e') %>; color: white;">
+              <%= run.status.titleize %>
+            </span>
+          </td>
+          <td><%= run.candidates_found %></td>
+          <td><%= run.candidates_vetted %></td>
+          <td><%= run.posts_created %></td>
+          <td><%= run.duration_display %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @recent_runs.empty? %>
+    <p style="text-align: center; padding: 1rem; color: #666;">No runs yet.</p>
+  <% end %>
+
+  <h3>Recent Candidates</h3>
+  <table style="width: 100%;">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Source</th>
+        <th>Score</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @recent_candidates.each do |candidate| %>
+        <tr>
+          <td>
+            <%= link_to candidate.truncated_title(length: 50), candidate.url, target: "_blank" %>
+          </td>
+          <td><%= candidate.source_display %></td>
+          <td><%= candidate.score_display %></td>
+          <td>
+            <span style="padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.85em;
+              background: <%= case candidate.status
+                when 'submitted' then '#5cb85c'
+                when 'rejected' then '#d9534f'
+                else '#999'
+              end %>; color: white;">
+              <%= candidate.status.titleize %>
+            </span>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <% if @recent_candidates.empty? %>
+    <p style="text-align: center; padding: 1rem; color: #666;">No candidates yet.</p>
+  <% end %>
+</div>

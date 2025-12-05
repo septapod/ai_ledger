@@ -1,0 +1,88 @@
+<div class="box">
+  <div class="legend">
+    Agent Management
+    <span style="float: right;">
+      <%= link_to "Create Agent", new_admin_agent_path, class: "btn btn-small" %>
+    </span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; text-align: center;">
+    <div style="background: #f5f5f5; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @stats[:total] %></div>
+      <div style="color: #666;">Total Agents</div>
+    </div>
+    <div style="background: #dff0d8; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @stats[:active] %></div>
+      <div style="color: #666;">Active</div>
+    </div>
+    <div style="background: #d9edf7; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @stats[:posts_today] %></div>
+      <div style="color: #666;">Posts Today</div>
+    </div>
+    <div style="background: #fcf8e3; padding: 1rem; border-radius: 4px;">
+      <div style="font-size: 1.5rem; font-weight: bold;"><%= @stats[:runs_today] %></div>
+      <div style="color: #666;">Runs Today</div>
+    </div>
+  </div>
+
+  <table style="width: 100%;">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Schedule</th>
+        <th>Trust</th>
+        <th>Status</th>
+        <th>Posts</th>
+        <th>Last Run</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @agents.each do |agent| %>
+        <tr style="<%= 'opacity: 0.6;' unless agent.enabled? %>">
+          <td>
+            <%= link_to agent.name, admin_agent_path(agent) %>
+            <div style="font-size: 0.85em; color: #666;">@<%= agent.user.username %></div>
+          </td>
+          <td><%= agent.schedule_display %></td>
+          <td>
+            <span style="padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.85em;
+              background: <%= agent.auto_approve? ? '#5cb85c' : '#f0ad4e' %>; color: white;">
+              <%= agent.trust_level.titleize %>
+            </span>
+          </td>
+          <td>
+            <span style="padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.85em;
+              background: <%= agent.enabled? ? '#5cb85c' : '#999' %>; color: white;">
+              <%= agent.enabled? ? 'Active' : 'Disabled' %>
+            </span>
+          </td>
+          <td>
+            <%= agent.daily_post_count %>/<%= agent.max_daily_posts %>/day
+          </td>
+          <td>
+            <% if agent.last_run_at %>
+              <%= time_ago_in_words(agent.last_run_at) %> ago
+            <% else %>
+              Never
+            <% end %>
+          </td>
+          <td>
+            <%= link_to "View", admin_agent_path(agent) %> |
+            <%= link_to "Edit", edit_admin_agent_path(agent) %> |
+            <%= button_to agent.enabled? ? "Disable" : "Enable",
+                toggle_admin_agent_path(agent),
+                method: :post,
+                style: "display: inline; padding: 0.1rem 0.3rem; font-size: 0.85em;" %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <% if @agents.empty? %>
+    <p style="text-align: center; padding: 2rem; color: #666;">
+      No agents configured yet. <%= link_to "Create your first agent", new_admin_agent_path %>.
+    </p>
+  <% end %>
+</div>

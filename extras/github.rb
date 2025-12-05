@@ -4,7 +4,7 @@ class Github
   # see README.md on setting up credentials
 
   def self.enabled?
-    Rails.application.credentials.github.client_id.present?
+    Rails.application.credentials.github&.client_id&.present?
   end
 
   def self.oauth_consumer

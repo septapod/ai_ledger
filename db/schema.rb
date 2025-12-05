@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_27_163517) do
+ActiveRecord::Schema[8.0].define(version: 2025_12_05_180004) do
   create_table "action_mailbox_inbound_emails", charset: "utf8mb4", collation: "utf8mb4_general_ci", force: :cascade do |t|
     t.integer "status", default: 0, null: false
     t.string "message_id", null: false
@@ -46,6 +46,90 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_27_163517) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "agent_candidates", charset: "utf8mb4", collation: "utf8mb4_uca1400_ai_ci", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.bigint "agent_run_id", null: false
+    t.string "source_type", limit: 20, null: false
+    t.bigint "source_id"
+    t.string "url", limit: 500, null: false
+    t.string "title", limit: 500
+    t.text "content"
+    t.float "rule_score"
+    t.float "llm_score"
+    t.float "final_score"
+    t.string "status", limit: 20, default: "pending", null: false
+    t.string "rejection_reason", limit: 200
+    t.bigint "story_id", unsigned: true
+    t.string "token", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_id", "status"], name: "index_agent_candidates_on_agent_id_and_status"
+    t.index ["agent_id", "url"], name: "index_agent_candidates_on_agent_id_and_url", unique: true
+    t.index ["agent_id"], name: "index_agent_candidates_on_agent_id"
+    t.index ["agent_run_id"], name: "index_agent_candidates_on_agent_run_id"
+    t.index ["status"], name: "index_agent_candidates_on_status"
+    t.index ["story_id"], name: "index_agent_candidates_on_story_id"
+    t.index ["token"], name: "index_agent_candidates_on_token", unique: true
+    t.index ["url"], name: "index_agent_candidates_on_url"
+  end
+
+  create_table "agent_rss_feeds", charset: "utf8mb4", collation: "utf8mb4_uca1400_ai_ci", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.bigint "rss_feed_id", null: false
+    t.index ["agent_id", "rss_feed_id"], name: "index_agent_rss_feeds_on_agent_id_and_rss_feed_id", unique: true
+    t.index ["agent_id"], name: "index_agent_rss_feeds_on_agent_id"
+    t.index ["rss_feed_id"], name: "index_agent_rss_feeds_on_rss_feed_id"
+  end
+
+  create_table "agent_runs", charset: "utf8mb4", collation: "utf8mb4_uca1400_ai_ci", force: :cascade do |t|
+    t.bigint "agent_id", null: false
+    t.datetime "started_at", null: false
+    t.datetime "completed_at"
+    t.string "status", limit: 20, default: "running", null: false
+    t.integer "candidates_found", default: 0, null: false
+    t.integer "candidates_vetted", default: 0, null: false
+    t.integer "candidates_llm_scored", default: 0, null: false
+    t.integer "posts_created", default: 0, null: false
+    t.text "error_message"
+    t.text "metrics", size: :long, default: "{}", collation: "utf8mb4_bin"
+    t.string "token", null: false
+    t.datetime "created_at", null: false
+    t.index ["agent_id", "created_at"], name: "index_agent_runs_on_agent_id_and_created_at"
+    t.index ["agent_id"], name: "index_agent_runs_on_agent_id"
+    t.index ["status"], name: "index_agent_runs_on_status"
+    t.index ["token"], name: "index_agent_runs_on_token", unique: true
+    t.check_constraint "json_valid(`metrics`)", name: "agent_run_metrics"
+  end
+
+  create_table "agents", charset: "utf8mb4", collation: "utf8mb4_uca1400_ai_ci", force: :cascade do |t|
+    t.bigint "user_id", null: false, unsigned: true
+    t.string "name", limit: 100, null: false
+    t.text "description"
+    t.boolean "enabled", default: false, null: false
+    t.string "schedule_interval", limit: 50, default: "daily", null: false
+    t.integer "posts_per_run", default: 10, null: false
+    t.integer "max_daily_posts", default: 50, null: false
+    t.string "trust_level", limit: 20, default: "review", null: false
+    t.text "search_config", size: :long, default: "{}", collation: "utf8mb4_bin"
+    t.text "quality_config", size: :long, default: "{}", collation: "utf8mb4_bin"
+    t.text "settings", size: :long, default: "{}", collation: "utf8mb4_bin"
+    t.datetime "last_run_at"
+    t.datetime "next_run_at"
+    t.integer "run_count", default: 0, null: false
+    t.integer "post_count", default: 0, null: false
+    t.string "token", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["enabled"], name: "index_agents_on_enabled"
+    t.index ["next_run_at"], name: "index_agents_on_next_run_at"
+    t.index ["token"], name: "index_agents_on_token", unique: true
+    t.index ["trust_level"], name: "index_agents_on_trust_level"
+    t.index ["user_id"], name: "index_agents_on_user_id"
+    t.check_constraint "json_valid(`quality_config`)", name: "quality_config"
+    t.check_constraint "json_valid(`search_config`)", name: "search_config"
+    t.check_constraint "json_valid(`settings`)", name: "agent_settings"
   end
 
   create_table "categories", charset: "utf8mb4", collation: "utf8mb4_general_ci", force: :cascade do |t|
@@ -318,6 +402,44 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_27_163517) do
     t.index ["user_id"], name: "index_read_ribbons_on_user_id"
   end
 
+  create_table "rss_feed_items", charset: "utf8mb4", collation: "utf8mb4_uca1400_ai_ci", force: :cascade do |t|
+    t.bigint "rss_feed_id", null: false
+    t.bigint "story_id", unsigned: true
+    t.string "guid", null: false
+    t.string "url", limit: 500, null: false
+    t.string "title", limit: 500
+    t.text "content"
+    t.datetime "published_at"
+    t.float "relevance_score"
+    t.string "processing_status", limit: 20, default: "pending", null: false
+    t.text "processing_notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["guid"], name: "index_rss_feed_items_on_guid"
+    t.index ["processing_status"], name: "index_rss_feed_items_on_processing_status"
+    t.index ["rss_feed_id", "guid"], name: "index_rss_feed_items_on_rss_feed_id_and_guid", unique: true
+    t.index ["rss_feed_id"], name: "index_rss_feed_items_on_rss_feed_id"
+    t.index ["story_id"], name: "index_rss_feed_items_on_story_id"
+  end
+
+  create_table "rss_feeds", charset: "utf8mb4", collation: "utf8mb4_uca1400_ai_ci", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "url", null: false
+    t.string "category", limit: 50
+    t.boolean "active", default: true, null: false
+    t.datetime "last_fetched_at"
+    t.string "last_error"
+    t.integer "fetch_count", default: 0, null: false
+    t.integer "story_count", default: 0, null: false
+    t.text "settings", size: :long, default: "{}", collation: "utf8mb4_bin"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_rss_feeds_on_active"
+    t.index ["category"], name: "index_rss_feeds_on_category"
+    t.index ["url"], name: "index_rss_feeds_on_url", unique: true
+    t.check_constraint "json_valid(`settings`)", name: "settings"
+  end
+
   create_table "saved_stories", id: { type: :bigint, unsigned: true }, charset: "utf8mb4", collation: "utf8mb4_general_ci", force: :cascade do |t|
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
@@ -357,10 +479,21 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_27_163517) do
     t.datetime "updated_at", null: false
     t.datetime "last_edited_at", null: false
     t.string "token", null: false
+    t.string "approval_status", limit: 20, default: "approved", null: false
+    t.datetime "approved_at"
+    t.bigint "approved_by_user_id", unsigned: true
+    t.text "rejection_reason"
+    t.string "image_url", limit: 500
+    t.bigint "agent_id"
+    t.index ["agent_id"], name: "index_stories_on_agent_id"
+    t.index ["approval_status", "created_at"], name: "index_stories_on_approval_status_and_created_at"
+    t.index ["approval_status"], name: "index_stories_on_approval_status"
+    t.index ["approved_by_user_id"], name: "fk_rails_151b56946e"
     t.index ["created_at"], name: "index_stories_on_created_at"
     t.index ["domain_id"], name: "index_stories_on_domain_id"
     t.index ["hotness"], name: "hotness_idx"
     t.index ["id", "is_deleted"], name: "index_stories_on_id_and_is_deleted"
+    t.index ["image_url"], name: "index_stories_on_image_url"
     t.index ["last_comment_at"], name: "index_stories_on_last_comment_at"
     t.index ["mastodon_id"], name: "index_stories_on_mastodon_id"
     t.index ["merged_story_id"], name: "index_stories_on_merged_story_id"
@@ -467,17 +600,25 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_27_163517) do
     t.datetime "last_read_newest_story"
     t.datetime "last_read_newest_comment"
     t.string "token", null: false
+    t.boolean "requires_submission_approval", default: false, null: false
+    t.boolean "is_bot", default: false, null: false
+    t.boolean "bot_enabled", default: false, null: false
+    t.text "bot_settings", size: :long, default: "{}", collation: "utf8mb4_bin"
     t.index ["banned_by_user_id"], name: "users_banned_by_user_id_fk"
+    t.index ["bot_enabled"], name: "index_users_on_bot_enabled"
     t.index ["disabled_invite_by_user_id"], name: "users_disabled_invite_by_user_id_fk"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["invited_by_user_id"], name: "users_invited_by_user_id_fk"
+    t.index ["is_bot"], name: "index_users_on_is_bot"
     t.index ["mailing_list_mode"], name: "mailing_list_enabled"
     t.index ["mailing_list_token"], name: "mailing_list_token", unique: true
     t.index ["password_reset_token"], name: "password_reset_token", unique: true
+    t.index ["requires_submission_approval"], name: "index_users_on_requires_submission_approval"
     t.index ["rss_token"], name: "rss_token", unique: true
     t.index ["session_token"], name: "session_hash", unique: true
     t.index ["token"], name: "index_users_on_token", unique: true
     t.index ["username"], name: "username", unique: true
+    t.check_constraint "json_valid(`bot_settings`)", name: "bot_settings"
   end
 
   create_table "votes", id: { type: :bigint, unsigned: true }, charset: "utf8mb4", collation: "utf8mb4_general_ci", force: :cascade do |t|
@@ -495,6 +636,13 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_27_163517) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "agent_candidates", "agent_runs"
+  add_foreign_key "agent_candidates", "agents"
+  add_foreign_key "agent_candidates", "stories"
+  add_foreign_key "agent_rss_feeds", "agents"
+  add_foreign_key "agent_rss_feeds", "rss_feeds"
+  add_foreign_key "agent_runs", "agents"
+  add_foreign_key "agents", "users"
   add_foreign_key "comments", "comments", column: "parent_comment_id", name: "comments_parent_comment_id_fk"
   add_foreign_key "comments", "hats", name: "comments_hat_id_fk"
   add_foreign_key "comments", "stories", name: "comments_story_id_fk"
@@ -529,11 +677,15 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_27_163517) do
   add_foreign_key "origins", "users", column: "banned_by_user_id"
   add_foreign_key "read_ribbons", "stories", name: "read_ribbons_story_id_fk"
   add_foreign_key "read_ribbons", "users", name: "read_ribbons_user_id_fk"
+  add_foreign_key "rss_feed_items", "rss_feeds"
+  add_foreign_key "rss_feed_items", "stories"
   add_foreign_key "saved_stories", "stories", name: "saved_stories_story_id_fk"
   add_foreign_key "saved_stories", "users", name: "saved_stories_user_id_fk"
+  add_foreign_key "stories", "agents"
   add_foreign_key "stories", "domains"
   add_foreign_key "stories", "origins"
   add_foreign_key "stories", "stories", column: "merged_story_id", name: "stories_merged_story_id_fk"
+  add_foreign_key "stories", "users", column: "approved_by_user_id"
   add_foreign_key "stories", "users", name: "stories_user_id_fk"
   add_foreign_key "suggested_taggings", "stories", name: "suggested_taggings_story_id_fk"
   add_foreign_key "suggested_taggings", "tags", name: "suggested_taggings_tag_id_fk"

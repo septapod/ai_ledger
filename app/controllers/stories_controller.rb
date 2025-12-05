@@ -4,7 +4,9 @@ class StoriesController < ApplicationController
   include StoryFinder
 
   content_security_policy(only: :show) do |policy|
-    policy.img_src :self, :data, -> { @story&.can_have_images? ? "https:" : "" }
+    # Allow all HTTPS images for thumbnails; markdown images in descriptions
+    # are still gated by can_have_images? check in the Markdowner
+    policy.img_src :self, :data, "https:"
   end
 
   caches_page :show, if: CACHE_PAGE

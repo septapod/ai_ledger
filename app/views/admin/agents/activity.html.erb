@@ -1,0 +1,62 @@
+<div class="box">
+  <div class="legend">
+    <%= @agent.name %> - Activity Log
+    <span style="float: right;">
+      <%= link_to "Back", admin_agent_path(@agent), class: "btn btn-small" %>
+    </span>
+  </div>
+
+  <table style="width: 100%;">
+    <thead>
+      <tr>
+        <th>Started</th>
+        <th>Completed</th>
+        <th>Status</th>
+        <th>Found</th>
+        <th>Vetted</th>
+        <th>LLM Scored</th>
+        <th>Posted</th>
+        <th>Duration</th>
+        <th>Error</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @runs.each do |run| %>
+        <tr>
+          <td><%= run.started_at.strftime('%Y-%m-%d %H:%M') %></td>
+          <td><%= run.completed_at&.strftime('%H:%M') || '-' %></td>
+          <td>
+            <span style="padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.85em;
+              background: <%= run.completed? ? '#5cb85c' : (run.failed? ? '#d9534f' : '#f0ad4e') %>; color: white;">
+              <%= run.status.titleize %>
+            </span>
+          </td>
+          <td><%= run.candidates_found %></td>
+          <td><%= run.candidates_vetted %></td>
+          <td><%= run.candidates_llm_scored %></td>
+          <td><%= run.posts_created %></td>
+          <td><%= run.duration_display %></td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">
+            <% if run.error_message.present? %>
+              <span title="<%= run.error_message %>" style="color: #d9534f;">
+                <%= truncate(run.error_message, length: 30) %>
+              </span>
+            <% else %>
+              -
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+
+  <% if @runs.empty? %>
+    <p style="text-align: center; padding: 2rem; color: #666;">No runs recorded yet.</p>
+  <% end %>
+
+  <% if @runs.respond_to?(:total_pages) && @runs.total_pages > 1 %>
+    <div style="text-align: center; margin-top: 1rem;">
+      <%= paginate @runs %>
+    </div>
+  <% end %>
+</div>

@@ -53,6 +53,15 @@ export const qSA = (context, selector) => {
   return context.querySelectorAll(selector);
 };
 
+// Debounce utility for rate-limiting function calls
+export const debounce = (func, wait) => {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+};
+
 export const replace = (oldElement, newHTMLString) => {
   const placeHolder = document.createElement('div');
   placeHolder.insertAdjacentHTML('afterBegin', newHTMLString);
@@ -216,6 +225,158 @@ export class _LobstersFunction {
       });
     button.removeAttribute("disabled");
     Lobster.checkStoryTitle();
+  }
+
+  // Auto-fetch URL metadata on paste/input
+  setupStoryForm() {
+    const urlField = qS('#story_url');
+    if (!urlField) return;
+
+    const debouncedFetch = debounce(() => {
+      const url = urlField.value.trim();
+      if (url && url.startsWith('http')) {
+        Lobster.autoFetchMetadata(url);
+      }
+    }, 500);
+
+    urlField.addEventListener('input', debouncedFetch);
+    urlField.addEventListener('paste', () => setTimeout(debouncedFetch, 100));
+  }
+
+  autoFetchMetadata(url) {
+    const titleField = qS('#story_title');
+    const fetchBtn = qS('#story_fetch_title');
+    const formData = new FormData();
+    formData.append('fetch_url', url);
+
+    console.log('[URL Preview] Starting fetch for:', url);
+
+    // Show loading state
+    if (fetchBtn) {
+      fetchBtn.disabled = true;
+      fetchBtn.textContent = 'Fetching...';
+    }
+
+    // Remove any existing status message
+    Lobster.removeUrlStatus();
+
+    fetchWithCSRF('/stories/fetch_url_attributes', {
+      method: 'post',
+      headers: new Headers({'X-Requested-With': 'XMLHttpRequest'}),
+      body: formData,
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('[URL Preview] Received:', data);
+
+      // Fill title if empty
+      if (data.title && !titleField.value) {
+        titleField.value = data.title;
+      }
+
+      // Update URL if canonical
+      if (data.url && data.url !== url) {
+        qS('#story_url').value = data.url;
+        slideDownJS(qS('.url-updated'));
+      }
+
+      // Show preview card or status message
+      if (data.title || data.description || data.image) {
+        Lobster.showUrlPreview(data);
+      } else {
+        // No data extracted - show feedback
+        Lobster.showUrlStatus('Could not fetch metadata from this URL. You may need to enter the title manually.', 'warning');
+      }
+
+      if (fetchBtn) {
+        fetchBtn.disabled = false;
+        fetchBtn.textContent = 'Fetch\u00A0Title';
+      }
+
+      Lobster.checkStoryTitle();
+    })
+    .catch(error => {
+      console.error('[URL Preview] Fetch error:', error);
+      Lobster.showUrlStatus('Failed to fetch URL. Please try again or enter details manually.', 'error');
+      if (fetchBtn) {
+        fetchBtn.disabled = false;
+        fetchBtn.textContent = 'Fetch\u00A0Title';
+      }
+    });
+  }
+
+  showUrlPreview(data) {
+    // Remove existing preview
+    const existingPreview = qS('.url-preview');
+    if (existingPreview) existingPreview.remove();
+
+    // Show preview if we have EITHER description OR image
+    if (!data.description && !data.image) {
+      console.log('[URL Preview] No description or image to display');
+      return;
+    }
+
+    const preview = document.createElement('div');
+    preview.className = 'url-preview';
+
+    // Add image if available
+    if (data.image) {
+      console.log('[URL Preview] Adding image:', data.image);
+      const img = document.createElement('img');
+      img.src = data.image;
+      img.alt = '';
+      img.className = 'url-preview-image';
+      img.onerror = function() {
+        console.warn('[URL Preview] Image failed to load:', data.image);
+        // Replace broken image with placeholder message
+        const placeholder = document.createElement('div');
+        placeholder.className = 'url-preview-image-failed';
+        placeholder.textContent = 'Image blocked by site';
+        this.replaceWith(placeholder);
+      };
+      preview.appendChild(img);
+    }
+
+    // Add description if available
+    if (data.description) {
+      const desc = document.createElement('p');
+      desc.className = 'url-preview-description';
+      desc.textContent = data.description;
+      preview.appendChild(desc);
+    }
+
+    // Insert after URL field boxline
+    const urlBoxline = qS('#story_url')?.closest('.boxline');
+    if (urlBoxline) {
+      urlBoxline.after(preview);
+      console.log('[URL Preview] Preview card displayed');
+    }
+  }
+
+  showUrlStatus(message, type = 'info') {
+    // Remove any existing status/preview
+    Lobster.removeUrlStatus();
+    const existingPreview = qS('.url-preview');
+    if (existingPreview) existingPreview.remove();
+
+    const status = document.createElement('div');
+    status.className = `url-status url-status-${type}`;
+    status.textContent = message;
+
+    const urlBoxline = qS('#story_url')?.closest('.boxline');
+    if (urlBoxline) {
+      urlBoxline.after(status);
+    }
+  }
+
+  removeUrlStatus() {
+    const existingStatus = qS('.url-status');
+    if (existingStatus) existingStatus.remove();
   }
 
   hideStory(hiderEl) {
@@ -581,6 +742,8 @@ onPageLoad(() => {
   Lobster.checkStoryTitle()
 
   Lobster.tomSelect();
+
+  Lobster.setupStoryForm();
 
   if (qS('#story_url') && qS('#story_preview') && !qS('#story_preview').firstElementChild) {
     qS('#story_url').focus()

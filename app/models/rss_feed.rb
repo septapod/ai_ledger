@@ -4,6 +4,8 @@
 class RssFeed < ApplicationRecord
   has_many :rss_feed_items, dependent: :destroy
   has_many :stories, through: :rss_feed_items
+  has_many :agent_rss_feeds, dependent: :destroy
+  has_many :agents, through: :agent_rss_feeds
 
   validates :name, presence: true
   validates :url, presence: true, uniqueness: true,

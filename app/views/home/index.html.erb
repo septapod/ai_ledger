@@ -36,6 +36,19 @@ class="story <%= story.current_upvoted? ? "upvoted" : "" %>
     <%= link_to (story.show_score_to_user?(@user) ? story.score : '~'),
                 (@user ? '': login_path), :class => "upvoter" %>
   </div>
+  <% if story.has_thumbnail? %>
+    <div class="thumbnail">
+      <%= link_to(Routes.url_or_comments_path(story),
+                  tabindex: "-1",
+                  rel: (story.send_referrer? ? 'ugc' : 'ugc noreferrer')) do %>
+        <%= image_tag story.image_url,
+                      alt: "",
+                      loading: "lazy",
+                      class: "story_thumbnail",
+                      onerror: "this.style.display='none'" %>
+      <% end %>
+    </div>
+  <% end %>
   <div class="details">
     <span role="heading" aria-level="1" class="link h-cite u-repost-of">
       <% if story.can_be_seen_by_user?(@user) %>

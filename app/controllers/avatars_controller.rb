@@ -38,8 +38,10 @@ class AvatarsController < ApplicationController
 
     u = User.where(username: username).first!
 
-    if !(av = u.fetched_avatar(size))
-      raise ActionController::RoutingError.new("failed fetching avatar")
+    av = u.fetched_avatar(size)
+    if av.nil?
+      # Generate a simple default avatar if Gravatar fails
+      av = generate_default_avatar(username, size)
     end
 
     # the hatchbox pre-build script symlinks this to a shared folder but sister sites will most
@@ -56,5 +58,48 @@ class AvatarsController < ApplicationController
 
     response.headers["Expires"] = 1.hour.from_now.httpdate
     send_data av, type: "image/png", disposition: "inline"
+  end
+
+  private
+
+  def generate_default_avatar(username, size)
+    require "zlib"
+
+    # Generate a color based on username hash
+    hash = Digest::MD5.hexdigest(username)
+    r = hash[0..1].to_i(16)
+    g = hash[2..3].to_i(16)
+    b = hash[4..5].to_i(16)
+
+    # Create raw image data (each row: filter byte + RGB pixels)
+    raw_data = ""
+    size.times do
+      raw_data << "\x00" # filter byte (none)
+      size.times do
+        raw_data << r.chr << g.chr << b.chr
+      end
+    end
+
+    # Compress with zlib
+    compressed = Zlib::Deflate.deflate(raw_data)
+
+    # Build PNG
+    png = "\x89PNG\r\n\x1a\n" # PNG signature
+
+    # IHDR chunk
+    ihdr_data = [size, size, 8, 2, 0, 0, 0].pack("NNCCCCC")
+    png << png_chunk("IHDR", ihdr_data)
+
+    # IDAT chunk
+    png << png_chunk("IDAT", compressed)
+
+    # IEND chunk
+    png << png_chunk("IEND", "")
+
+    png
+  end
+
+  def png_chunk(type, data)
+    [data.bytesize].pack("N") + type + data + [Zlib.crc32(type + data)].pack("N")
   end
 end

@@ -14,7 +14,8 @@ Rails.application.configure do
     policy.connect_src :self
 
     # Data URL used for Pushover logo in settings
-    policy.img_src :self, :data
+    # https: needed for URL preview images from external sites
+    policy.img_src :self, :data, "https:"
     policy.script_src :self
 
     # 18 inline styles to clean up before enabling this
