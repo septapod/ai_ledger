@@ -7,7 +7,8 @@ gem "rails"
 # database and caching
 gem "solid_cache"
 gem "sqlite3"
-gem "trilogy"
+gem "trilogy" # MySQL for development
+gem "pg"      # PostgreSQL for production
 
 # jobs
 gem "solid_queue"
